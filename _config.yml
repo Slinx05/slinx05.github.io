@@ -39,8 +39,8 @@ social:
   links:
     # The first element serves as the copyright owner's link
     #- https://twitter.com/username # change to your Twitter homepage
-    - https://techhub.social/@slinx05
     - https://github.com/slinx05 # change to your GitHub homepage
+    - https://techhub.social/@slinx05
     # Uncomment below to add more social links
     # - https://www.facebook.com/username
     # - https://www.linkedin.com/in/username
