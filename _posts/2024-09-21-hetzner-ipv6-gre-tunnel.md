@@ -3,8 +3,10 @@ title:  Hetzner Network IPv6 [GRE Tunnel]
 date: 2024-09-21 12:00:00 +0200
 categories: [🏢 Hetzner]
 tags: [Hetzner, Ubuntu, GRE, Tunnel, IPv6, OPNsense]
-description: Im Hetzner Netzwerk für Cloud Server wird nur IPv4 Kommunikation unterstützt, keine IPv6 Kommunikation. Damit meine Server trotzdem via IPv6 erreichbar sind, nutze ich als Workaround einen GRE Tunnel.
+description: Hetzner Cloud Server mit IPv6 hinter einer OPNsense nutzen.
 ---
+
+## Einleitung
 
 Im [Hetzner Netzwerk][1] für Cloud Server wird nur IPv4 Kommunikation unterstützt, __keine__ IPv6 Kommunikation (Stand: September 2024).
 
