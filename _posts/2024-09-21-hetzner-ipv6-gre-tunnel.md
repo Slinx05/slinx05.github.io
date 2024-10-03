@@ -1,67 +1,124 @@
 ---
-title:  Hetzner Network IPv6 [GRE Tunnel]
+title:  "Hetzner Cloud Networks IPv6"
 date: 2024-09-21 12:00:00 +0200
-categories: [🏢 Hetzner]
+categories: [Hetzner Cloud]
 tags: [Hetzner, Ubuntu, GRE, Tunnel, IPv6, OPNsense]
-description: Hetzner Cloud Server mit IPv6 hinter einer OPNsense nutzen.
+description: |
+  Mit diesem Workaround sind meine Server im Hetzer Cloud Netzwerk an einer OPNsense auch per IPv6 erreichbar.
+image:
+  path: /assets/img/header/ipv6.webp
+  lqip: data:image/webp;base64,UklGRv4AAABXRUJQVlA4IPIAAABQBQCdASoUABQAPpFCm0olo6IhqAgAsBIJYwC7AYw6aPF1tAK1Z1Ua46B0DhSiDk/63gAA/u+h6lKHdxXJoKk5UGL7969a9BdkftO7rmx7A1LkjiIQw/lBTckTHWxVGoer+d6dVRJbIarW92s+hgzrTxdbx4hfodo+ju86yRHdFCH9q5rPA6e6vgAa5k2IMAuVencqAM0+Iz2gt/R+Qke7cUUlYepJ/69J982niKuKxgYcO5v3NlRMFFv2Lbi6Do9+TWHPS4RKYcT/EhZ8ko03XRvIHGEkoYLubBq0FbLNFopigUS3rcvuov8fsnIE/z8AAA==
+  alt: ChatGTPs Vorstellung von einer Firewall und einem Server mit IPv6.
 ---
 
 ## Einleitung
 
-Im [Hetzner Netzwerk][1] für Cloud Server wird nur IPv4 Kommunikation unterstützt, __keine__ IPv6 Kommunikation (Stand: September 2024).
+Im Hetzner Netzwerk für Cloud Server wird __nur IPv4__ unterstützt und __kein IPv6__ (Stand: September 2024).
 
-Meine Cloud Server sind mit dem Hetzner Netzwerk an einer [OPNsense][4] verbunden.  
-Damit meine Server trotzdem via IPv6 erreichbar sind, nutze ich als Workaround einen [GRE Tunnel][2].
+Meine Cloud Server sind nicht direkt mit dem öffentlichen Netzwerk verbunden, sondern über das Hetzner Netzwerk mit einer [OPNsense][4]. Damit meine Server hinter der OPNsense trotzdem via IPv6 erreichbar sind, nutze ich als Workaround einen [GRE Tunnel][2].
 
 OPNsense Version: `24.7.4_1`  
 Ubuntu Version:   `24.04.1`
 
 Übersicht der Config-Schritte:
 
-1. WAN IPv6 Adresse prüfen
-2. GRE Interface `gre0` erstellen
-3. GRE Interface `gre0` zuweisen & aktivieren
-4. Firewall Gruppe `DMZv6Pub` erstellen / Member hinzufügen
-5. Firewall Regeln für `DMZv4Pirv`, `DMZv6Pub` erstellen
-6. GRE Tunnel am Server konfigurieren
+- Hetzner Netzwerk erstellen
+- OPNsense `WAN` & `Hetzner (LAN)` Interface prüfen
+- OPNsense GRE Interface `gre0` erstellen, zuweisen & aktivieren
+- OPNsense Firewall Gruppe `DMZv6Pub` erstellen 
+- OPNsense Interface `gre0` zur Gruppe `DMZv6Pub` hinzufügen
+- OPNsense Firewall Regeln für `DMZv4Pirv`, `DMZv6Pub` erstellen
+- Server GRE Tunnel `tun0` konfigurieren
+
+## Voraussetzung
+
+Mein Workaround setzt voraus, dass die OPNsense bereits betriebsbereit und via IPv4 erreichbar ist.  
+
+## Topologie
+
+![Topologie](/assets/img/Hetzner-GRE-IPv6-Topologie.svg){: w="1000" }
+_Vereinfachte Darstellung des Aufbaus_
+
+## Hetzner
+
+Die Einrichtung des Hetzner Netzwerks ist in diesem [Tutorial][1] beschrieben.
+
+  > Achte darauf, dass im Hetzner Netzwerk eine Default Route zur OPNsense eingerichtet ist.  
+  > Ziel: `0.0.0.0/0`, Gateway: `10.80.0.3`
+  {: .prompt-warning }
 
 ## OPNsense
 
-### WAN Interface
+### WAN Interface prüfen
+
+Hetzner vergibt pro Cloud Server 1 kostenloses IPv6 Prefix mit einer `/64` Maske.  
+Um diesen Prefix auch auf Servern hinter der OPNsense nutzen zu können, vergibt man dem OPNsense WAN Interface eine `::1/128` Adresse.
 
 Menü: __[Interfaces / WAN]__
 
-Hetzner vergibt pro Server 1 Subnet (/64 IPv6 Prefix).  
-Deshalb vergibt man dem WAN Interface eine /128 Maske und kann die gleiche IP Range auf anderen Interfaces nutzen.
-Somit kann man Public IPv6 Adressen aus der gleichen Range auch "hinter" dem WAN Interface nutzen z.B. für die Server.
+- Stelle sicher, dass dein WAN Interface die korrekte Adresse & Maske eingestellt hat:
 
-```notice
-WAN:
-IPv6 Address    = 2a01::1/128
-Enable          = true
-```
+  ```note
+  WAN:
+  Enable                  = true
+  IPv6 Configuration Type = Static IPv6
+  IPv6 Address            = 2a01::1/128
+  ```
+
+  > Ersetze den Prefix `2a01::` mit dem dir von Hetzner zugeteilten Prefix!
+  {: .prompt-warning }
+
+### Hetzner Interface prüfen
+
+Das Interface welches mit dem Hetzner Netzwerk verbunden ist, habe ich `DMZv4Priv` benannt.  
+
+Menü: __[Interfaces / DMZv4Priv]__
+
+- Stelle sicher, dass dein Hetzner Interface eine Adresse via DHCP bezieht:
+
+  ```note
+  DMZv4Priv:
+  Enable                  = true
+  IPv4 Configuration Type = DHCP
+  ```
 
 ### GRE Interface erstellen
 
-Menü: __[Interfaces / Other Types / GRE]__
-
-Das Interface welches mit dem Hetzner Netzwerk verbunden ist, habe ich `DMZv4Priv` benannt.  
 Das Interface `DMZv4Priv` nutze ich für den GRE Tunnel, dort werden die Pakete gesendet/empfangen.
 
-```notice
-gre0:
-Local Address           = DMZv4Priv (10.80.0.3)
-Remote Adress           = 10.80.0.4 (Tunnel Endpoint Server A)
-Tunnel local address    = 2a01::2
-Tunnel remote address   = 2a01::3
-Tunnel netmask / prefix = 127
-```
+Menü: __[Interfaces / Other Types / GRE]__
+
+- Erstelle das GRE Interface:
+
+  ```note
+  gre0:
+  Local Address         = DMZv4Priv (10.80.0.3)
+  Remote Adress         = 10.80.0.4 (Server IP / Tunnel Endpoint)
+  Tunnel local address  = 2a01::3
+  Tunnel remote address = 2a01::4
+  Tunnel netmask/prefix = 127
+  ```
 
 ### GRE Interface zuweisen
 
+Damit das `gre0` Interface genutzt werden kann, muss dieses zugewiesen und aktiviert werden.
+
 Menü: __[Interfaces / Assignments]__
 
-Das Interface `gre0` zuweisen und aktivieren.
+- Ordne das Interface zu:
+
+  ```note
+  Device      = gre0
+  Description = Tun0
+  ```
+
+Menü: __[Interfaces / Tun0]__
+
+- Aktiviere das Interface:
+
+  ```note
+  Enable:  [x] Enable Interface
+  ```
 
 ### Firewall Gruppe erstellen
 
@@ -71,72 +128,113 @@ In der Gruppe `DMZv6Pub` werden später die Firewall Regeln erstellt.
 Sollten zukünftig weitere GRE Tunnel hinzugefügt werden, muss kein neues Regelwerk geschrieben werden.
 Das neue GRE Interface wird zur Gruppe hinzugefügt und somit wird auch das vorhandene Regelwerk angewandt.
 
-```notice
-Name                    = DMZv6Pub
-Members                 = gre0
-```
+- Erstelle die Gruppe und füge das Interface hinzu:
+
+  ```note
+  Name    = DMZv6Pub
+  Members = Tun0
+  ```
 
 ### Firewall Regelwerk
 
-Menü: __[Firewall / Rules]__
+Menü: __[Firewall / Rules / DMZv4Priv]__
 
-`DMZv4Priv`:  
-Über dieses Regelwerk wird gesteuert, welche IPv4 Kommunikation von deinen Servern aus erlaubt ist.
+Dieses Regelwerk steuert die IPv4 Kommunikation deiner Server.
 
-```notice
-Allow IPv4 GRE Any -> DMZv4Priv Address | Description: GRE Tunnel Allowed
-```
+-  Erstelle die Regel, damit der GRE Tunnel erlaubt ist:
 
-`DMZv6Pub`:  
-Über dieses Regelwerk wird gesteuert, welche IPv6 Kommunikation von deinen Servern aus erlaubt ist.
+| Action | Protocol | Source | Port | Destination       | Port | Gateway | Description        |
+| ------ | -------- | ------ | ---- | ----------------- | ---- | ------- | ------------------ |
+| Allow  | IPv4 GRE | *      | *    | DMZv4Priv address | *    | *       | GRE Tunnel Allowed |
 
-```notice
-Allow IPv6 IPV6-ICMP Any -> Any | Description: Ping Allowed
-```
+Menü: __[Firewall / Rules / DMZv6Pub]__
+
+Dieses Regelwerk steuert die IPv6 Kommunikation deiner Server.
+
+- Erstelle die Regel, damit ein Ping in Richtung Internet erlaubt ist:
+
+| Action | Protocol       | Source | Port | Destination | Port | Gateway | Description  |
+| ------ | -------------- | ------ | ---- | ----------- | ---- | ------- | ------------ |
+| Allow  | IPv6 IPV6-ICMP | *      | *    | *           | *    | *       | Ping Allowed |
 
 ## Server
 
-### Netplan Config
+### Interface Config
 
-[Netplan][3] ist ein Renderer zur Abstraktion der Netzwerkkonfiguration.
+Zur Konfiguration des Server Interfaces nutze ich [Netplan][3].  
+Das Tool ist ein Renderer zur Abstraktion der Netzwerkkonfiguration.
 
-`netplan generate` - Erstellt die Backend-Config anhand deiner YAML-Config  
-`netplan try -timeout 30` - Aktiviert die Config und macht einen Rollback, falls keine Bestätigung erfolgt  
-`etc/netplan/90-tunnels.yaml` - Die YAML-Config Datei
+- Erstelle die beiden Netplan Konfigurationsdateien und passe diese auf deine Parameter an:
 
-```yaml
-# Uncomment and configure to activate GRE Tunnel to opnsense hetzner
-network:
-  version: 2
-  tunnels:
-    tun0:
-      mode: gre
-      # https://baturin.org/tools/encapcalc/
-      mtu: "1426" # = 1450 (Hetzner Network) - 20 (IPv4 Header) - 4 (GRE Header)
-      optional: true
-      remote: 10.80.0.3
-      local: 10.80.0.4
-      addresses:
-        - "2a01::3/127"
-      routes:
-        - to: default
-          via: "2a01::2"
-```
+  ```yaml
+  network:
+    version: 2
+    ethernets:
+      ens10:                # <- dein Interface Name angeben
+        dhcp4: true
+        nameservers:
+          addresses:
+            - 1.1.1.1       # <- DNS IP
+        routes:
+          - to: default
+            via: 10.80.0.1  # <- IP des Hetzner "Switches"
+  ```
+  {: file='/etc/netplan/00-default-interface.yaml'}
 
-Nach dem die Config aktiviert wurde, kann das Interface überprüft werden:
+  > Nutze den [MTU Calculator][5] um für deine Umgebung die korrekte MTU zu ermitteln.  
+  {: .prompt-tip }
 
-```bash
-user@server:~$ ip address show dev tun0
+  ```yaml
+  network:
+    version: 2
+    tunnels:
+      tun0:
+        mode: gre
+        mtu: "1426"         # <- 1450 (Hetzner Network) - 20 (IPv4 Header) - 4 (GRE Header)
+        optional: true      # <- damit der Server beim booten nicht auf dieses Interface wartet
+        remote: 10.80.0.3   # <- OPNsense IPv4 Adresse (DMZv4Priv Interface)
+        local: 10.80.0.4    # <- Server IPv4 Adresse (wird per DHCP von Hetzner vergeben)
+        addresses:
+          - "2a01::4/127"   # <- dein öffentlicher IPv6 Prefix bzw. die IPv6 die dein Server bekommen soll
+        routes:
+          - to: default
+            via: "2a01::3"  # <- OPNsense IPv6 Adresse (DMZv6Pub Interface)
+  ```
+  {: file='/etc/netplan/01-tunnels.yaml'}
 
-tun0@NONE: <POINTOPOINT,NOARP,UP,LOWER_UP> mtu 1426 qdisc noqueue state UNKNOWN group default qlen 1000
-    link/gre 10.80.0.4 peer 10.80.0.3
-    inet6 2a01::3/127 scope global
-       valid_lft forever preferred_lft forever
-```
+- Führe den Befehl aus, um die Netzwerk Config erstellen zu lassen:
+
+  ```bash
+  netplan generate
+  ```
+  {: .nolineno }
+
+- Führe den Befehl aus, um die Netzwerk Config zu übernehmen:
+
+  ```bash
+  netplan try -timeout 30
+  ```
+  {: .nolineno }
+
+  > Ohne anschließende Bestätigung des Befehls, wird die Netzwerk Config zurück gerollt.  
+  > Sehr hilfreich, falls die Netzwerkverbindung durch einen Konfigurationsfehler unterbrochen wird.
+  {: .prompt-info }
+
+- Nach dem die Konfiguration übernommen wurde, prüfe ob die Adressen auf dem Interface `tun0` korrekt sind:
+
+  ```bash
+  user@server:~$ ip address show dev tun0
+  
+  tun0@NONE: <POINTOPOINT,NOARP,UP,LOWER_UP> mtu 1426 qdisc noqueue state UNKNOWN group default qlen 1000
+      link/gre 10.80.0.4 peer 10.80.0.3
+      inet6 2a01::4/127 scope global
+         valid_lft forever preferred_lft forever
+  ```
+  {: .nolineno }
 
 ### Funktionstest
 
-Der Server kann nun via IPv6 kommunizieren.
+Ein erster Test mit `ping` zeigt, der Server kann nun via IPv6 kommunizieren.
 
 ```bash
 user@server:~$ ping -6 google.com
@@ -150,10 +248,11 @@ PING google.com (2a00:1450:4001:82a::200e) 56 data bytes
 4 packets transmitted, 4 received, 0% packet loss, time 3004ms
 rtt min/avg/max/mdev = 4.162/4.279/4.387/0.081 ms
 ```
+{: .nolineno }
 
 ## Zusammenfassung
 
-Solltest du weitere Server deployen musst du nur die Config-Schritte: __2,3,4,6__ durchführen.
+Solltest du weitere Server in der Hetzner Cloud bereitstellen, musst du für jeden Server einen neuen GRE Tunnel konfigurieren.
 
 Es gibt noch die Möglichkeit VXLAN zu nutzen, jedoch war mir der Config-Overhead zu hoch. Da im Hetzner Netzwerk kein Multicast unterstützt wird, muss für jeden Server ein VXLAN angelegt werden und dann auf eine Bridge gelegt werden.
 
@@ -163,3 +262,4 @@ Für mich hat sich der GRE Tunnel Workaround als "einfachste" IPv6 Lösung herau
 [2]: https://www.cloudflare.com/de-de/learning/network-layer/what-is-gre-tunneling/ "What is GRE tunneling"
 [3]: https://netplan.readthedocs.io/en/stable/ "Netplan Documentation"
 [4]: https://docs.opnsense.org/manual/other-interfaces.html#gre "OPNsense Documentation"
+[5]: https://baturin.org/tools/encapcalc/ "Visual packet size calculator"
