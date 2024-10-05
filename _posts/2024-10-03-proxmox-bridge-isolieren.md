@@ -6,8 +6,8 @@ tags: [Proxmox, Network, Linux, Bridge]
 description: |
   Mit der Hilfe von einer Linux Bridge Option können VMs voneinander isoliert werden.
 image:
-  path: /assets/img/header/ipv6.webp
-  lqip: data:image/webp;base64,UklGRv4AAABXRUJQVlA4IPIAAABQBQCdASoUABQAPpFCm0olo6IhqAgAsBIJYwC7AYw6aPF1tAK1Z1Ua46B0DhSiDk/63gAA/u+h6lKHdxXJoKk5UGL7969a9BdkftO7rmx7A1LkjiIQw/lBTckTHWxVGoer+d6dVRJbIarW92s+hgzrTxdbx4hfodo+ju86yRHdFCH9q5rPA6e6vgAa5k2IMAuVencqAM0+Iz2gt/R+Qke7cUUlYepJ/69J982niKuKxgYcO5v3NlRMFFv2Lbi6Do9+TWHPS4RKYcT/EhZ8ko03XRvIHGEkoYLubBq0FbLNFopigUS3rcvuov8fsnIE/z8AAA==
+  path: /assets/img/header/security.webp
+  lqip: data:image/webp;base64,UklGRvAAAABXRUJQVlA4IOQAAABwBQCdASoUABQAPpFAm0olo6IhqAgAsBIJQBYgIZjPBMxBYh8swGKYyI/ukmzchE2snYYAAP70n6llEsweXwUpK5eM8NesRxrQ8ZN3N0rDuxQGWn1xumV3g78H9VZPLshxMXdLoapakXCeHpPD2ieZyzECQcP3dba9PM5ciMht9Q+3EdtkS6+iFtc4BX4cs3xg/N1Gev4bJroqhV6C91nhNBKzGiQuJOEWtWjUPRb58/zxjf5ZLGL6Jy0t+H8lvGwErenRoqRj64YAh1ssqnPqs66wirdvUPbufwzMXMVyjo2WAAA=
 ---
 
 ## Einleitung
